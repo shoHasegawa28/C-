@@ -171,14 +171,14 @@ namespace Repository
         {
             try
             {
-                if (File.Exists(DBInfoPass) == false)
+                // ファイルが存在していたら出力を行わない
+                if (File.Exists(DBInfoPass)) return;
+
+                var xmlSerializer1 = new XmlSerializer(typeof(DBInfomation));
+                using (var streamWriter = new StreamWriter(DBInfoPass, false, Encoding.UTF8))
                 {
-                    var xmlSerializer1 = new XmlSerializer(typeof(DBInfomation));
-                    using (var streamWriter = new StreamWriter(DBInfoPass, false, Encoding.UTF8))
-                    {
-                        xmlSerializer1.Serialize(streamWriter, Setting);
-                        streamWriter.Flush();
-                    }
+                    xmlSerializer1.Serialize(streamWriter, Setting);
+                    streamWriter.Flush();
                 }
             }
             catch (Exception)
@@ -225,11 +225,10 @@ namespace Repository
             // 接続数を1減らす
             ConnectCount--;
 
-            // 他にも接続しているオブジェクトが存在していれば解放しない
-            if (ConnectCount != 0) return;
-
-            // コネクションが存在しない場合は実行しない
-            if (Connection is null) return;
+            // 接続情報確認
+            bool isOtherConnect = (ConnectCount != 0);
+            bool isNullConnection = (Connection is null);
+            if(isOtherConnect || isNullConnection) return;
 
             // 接続情報を解放する
             Connection.Close();
@@ -278,6 +277,7 @@ namespace Repository
         /// <summary>
         /// 戻り値ありクエリ実行
         /// </summary>
+        /// <param name="dt"> データテーブル </param>
         /// <param name="query"> 実行クエリ </param>
         /// <returns> クエリ実行結果 </returns>
         public void ExecuteQuery(DataTable dt,string query)
@@ -286,6 +286,7 @@ namespace Repository
         /// <summary>
         /// 戻り値ありクエリ実行 (コマンドパラメータ辞書型ver)
         /// </summary>
+        /// <param name="dt"> データテーブル </param>
         /// <param name="query"> 実行クエリ </param>
         /// <returns> クエリ実行結果 </returns>
         public void ExecuteQuery(DataTable dt, string query, Dictionary<string, object> param)
@@ -295,86 +296,88 @@ namespace Repository
         /// 戻り値ありクエリ実行 (コマンドパラメータモデルベース ver)
         /// </summary>
         /// <typeparam name="T"> モデルの型 </typeparam>
+        /// <param name="dt"> データテーブル </param>
         /// <param name="query"> 検索クエリ </param>
         /// <param name="model"> 埋め込むデータ </param>
         /// <returns> クエリ実行結果 </returns>
         public void ExecuteQuery<T>(DataTable dt, string query, T model) where T:class
             => ExecuteQuery(dt,query, GetSqlParameterByPropety<T>(model, typeof(T).GetProperties()));
 
-
         /// <summary>
-        /// 戻り値ありクエリ実行 (モデルにバインドしたリストで戻す ver)
+        /// 戻り値ありクエリ実行 (モデルにマッピングしたリストで戻す ver)
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="query"></param>
-        /// <returns></returns>
+        /// <typeparam name="T">モデルの型</typeparam>
+        /// <param name="query">検索クエリ</param>
+        /// <returns>検索結果を格納したモデルを戻す</returns>
         public List<T> ExecuteQuery<T>(string query)where T:class
             => ToModelsByDataTable<T>(ExecuteQuery(query, null));
 
         /// <summary>
-        /// 戻り値ありクエリ実行 (モデルにバインドしたリストで戻す ver)
+        /// 戻り値ありクエリ実行 (モデルにマッピングしたリストで戻す ver)
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="query"></param>
-        /// <returns></returns>
+        /// <typeparam name="T">モデルの型</typeparam>
+        /// <param name="query">検索クエリ</param>
+        /// <param name="param">SQLパラメータ</param>
+        /// <returns>検索結果を格納したモデル</returns>
         public List<T> ExecuteQuery<T>(string query, Dictionary<string, object> param)where T:class
             => ToModelsByDataTable<T>(ExecuteQuery(query, ToSqlParameters(param)));
 
         /// <summary>
-        /// 戻り値ありクエリ実行 (モデルにバインドしたリストで戻す ver)
+        /// 戻り値ありクエリ実行 (モデルにマッピングしたリストで戻す ver)
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="query"></param>
-        /// <returns></returns>
+        /// <typeparam name="T">モデルの型</typeparam>
+        /// <param name="query">検索クエリ</param>
+        /// <param name="model">戻り値のモデル</param>
+        /// <returns>検索結果を格納したモデル</returns>
         public List<T> ExecuteQuery<T>(string query, T model) where T:class
             => ToModelsByDataTable<T>(ExecuteQuery(query, GetSqlParameterByPropety<T>(model, typeof(T).GetProperties())));
 
         /// <summary>
         /// DataTableをモデルリストに変換する
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="dt"></param>
-        /// <returns></returns>
+        /// <typeparam name="T">モデルの型</typeparam>
+        /// <param name="dt">検索結果を格納したデータテーブル</param>
+        /// <returns>データテーブルをモデルに変換したリストを戻す</returns>
         private List<T> ToModelsByDataTable<T>(DataTable dt) where T : class
             => BinndingModelByDataTable<T>(GetDataRows(dt),
                                            GetDataTableColumnNames(dt),
                                            GetPropetyNames<T>());
 
         /// <summary>
-        /// IEnumerable<DataRow>をモデルにバインドする
+        /// IEnumerable<DataRow>をモデルにマッピングする
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="drs"></param>
-        /// <param name="columnNames"></param>
-        /// <param name="propetyNames"></param>
+        /// <typeparam name="T">マッピング対象の型</typeparam>
+        /// <param name="drs">ソースとなるIEnumerable<DataRow></param>
+        /// <param name="columnNames">ソースのカラム名リスト</param>
+        /// <param name="propetyNames">マッピング対象のプロパティ名リスト</param>
         /// <returns></returns>
         private List<T> BinndingModelByDataTable<T>(IEnumerable<DataRow> drs,
                                                     List<string> columnNames,
                                                     List<string> propetyNames) where T : class
             => drs.Select(m => BindingModelByDataRow<T>(m, columnNames, propetyNames)).ToList();
 
-
         /// <summary>
-        /// DataTableからDataRowの反復形式を取得する
+        /// DataTableからDataRowのIEnumerableに変換する
         /// </summary>
-        /// <param name="dt"></param>
-        /// <returns></returns>
+        /// <param name="dt">変換対象のDataTable</param>
+        /// <returns>キャスト結果のIEnumerable<DataRow>を戻す</returns>
         private IEnumerable<DataRow> GetDataRows(DataTable dt)
             => dt.Rows.Cast<DataRow>();
 
         /// <summary>
         /// DataTableからカラム名のリストを取得する
         /// </summary>
-        /// <param name="dt"></param>
-        /// <returns></returns>
+        /// <param name="dt">カラム名を取得する対象のDataTable</param>
+        /// <returns>DataTableのカラム名をリストで戻す</returns>
         private List<string> GetDataTableColumnNames(DataTable dt)
             => dt.Columns.Cast<DataColumn>().Select(m => m.ColumnName).ToList();
 
         /// <summary>
+        /// TODO Static Classに移行予定
         /// クラスに属するプロパティ名を取得する
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
+        /// <typeparam name="T">取得するプロパティの型</typeparam>
+        /// <returns>クラスのプロパティ名を戻す</returns>
         private List<string> GetPropetyNames<T>() where T : class
             => (Activator.CreateInstance(typeof(T))).GetType().GetProperties().Select(m => m.Name).ToList();
 
@@ -382,7 +385,8 @@ namespace Repository
         /// 戻り値ありクエリ実行
         /// </summary>
         /// <param name="query"> 検索クエリ </param>
-        /// <returns> クエリ実行結果 </returns>
+        /// <param name="parameters">コマンドパラメータのIEnumerable型</param>
+        /// <returns>クエリ実行結果のDataTableを戻す</returns>
         private DataTable ExecuteQuery(string query, IEnumerable<SqlParameter> parameters)
         {
             var result = new DataTable();
@@ -394,7 +398,8 @@ namespace Repository
         /// 戻り値ありクエリ実行
         /// </summary>
         /// <param name="query"> 検索クエリ </param>
-        /// <returns> クエリ実行結果 </returns>
+        /// <param name="parameters">SQLパラメータ</param>
+        /// <returns>クエリ実行結果</returns>
         private void ExecuteQuery(DataTable dt,string query, IEnumerable<SqlParameter> parameters)
         {
             //  Sql実行
@@ -409,28 +414,31 @@ namespace Repository
                 // コマンドパラメータ設定
                 if (parameters is object) foreach (var param in parameters) command.Parameters.Add(param);
 
-
                 // SQL実行
                 dt.Load(command.ExecuteReader());
             }
         }
 
         /// <summary>
-        /// 取得したDataRowをModelにバインドする
+        /// 取得したDataRowをModelにマッピングする
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="dr"></param>
-        /// <param name="target"></param>
-        /// <returns></returns>
+        /// <typeparam name="T">モデルの型</typeparam>
+        /// <param name="dr">検索結果のDataRow</param>
+        /// <param name="columnNames">検索結果のカラム名リスト</param>
+        /// <param name="propetyNames">バインドするモデルのカラム名リスト</param>
+        /// <returns>検索結果のDataRowを指定したモデルにマッピングした結果を返す</returns>
         private T BindingModelByDataRow<T>(DataRow dr, List<string> columnNames, List<string> propetyNames) where T : class
         {
+            // 戻り値のモデルインスタンス作成
             var resultInstance = Activator.CreateInstance(typeof(T)) as T;
-
             foreach (var columnName in columnNames)
             {
+                //TODO スネークケースかどうかの判定をプロパティに変更する
+                //接続先のカラム名の命名規則によってキャメルケースに変更する処理
                 var propetyName = (ColumnNameRole == DBColumnNameRole.SnakeCase) ? StringProcess.ToCamelBySnake(columnName) : columnName;
                 if (propetyNames.Any(m => m == propetyName))
                 {
+                    //戻り値のモデルインスタンスにカラム情報をマッピングする
                     resultInstance.GetType().GetProperty(propetyName).SetValue(resultInstance, dr[columnName] is DBNull ? null : dr[columnName]);
                 }
             }
@@ -447,8 +455,8 @@ namespace Repository
         /// <summary>
         /// 戻り値なしクエリ実行 (コマンドパラメータあり)
         /// </summary>
-        /// <param name="query"> クエリ </param>
-        /// <param name="param"> コマンドパラメータ </param>
+        /// <param name="query">実行クエリ</param>
+        /// <param name="param">コマンドパラメータ</param>
         public void ExecuteNonQuery(string query, Dictionary<string, object> param)
             => ExecuteNonQuery(query, ToSqlParameters(param));
 
@@ -464,11 +472,10 @@ namespace Repository
         /// <summary>
         /// 戻り値無しクエリ実行 (実行用)
         /// </summary>
-        /// <param name="query"> 実行クエリ </param>
-        /// <param name="parameters"> コマンドパラメータ </param>
+        /// <param name="query">実行クエリ</param>
+        /// <param name="parameters">コマンドパラメータ</param>
         private void ExecuteNonQuery(string query, IEnumerable<SqlParameter> parameters)
         {
-            //  Sql実行
             using (var command = new SqlCommand(query, Connection))
             {
                 // command設定
@@ -480,6 +487,7 @@ namespace Repository
                 // パラメータを追加する
                 if (parameters is object) foreach (var param in parameters) command.Parameters.Add(param);
 
+                // SQL実行
                 command.ExecuteNonQuery();
             }
         }
@@ -487,8 +495,9 @@ namespace Repository
         /// <summary>
         /// コマンドにパラメータを追加する
         /// </summary>
-        /// <param name="command"> 追加対象のコマンド </param>
-        /// <param name="param"> 追加するSQLパラメータ </param>
+        /// <param name="command">追加対象のコマンド</param>
+        /// <param name="param">コマンドパラメータ</param>
+        /// <return>SQLParameterのIEnumerableを戻す</return>
         private IEnumerable<SqlParameter> ToSqlParameters(Dictionary<string, object> param)
             => param.Select(m => new SqlParameter() { ParameterName = m.Key, Value = m.Value });
 
@@ -496,15 +505,16 @@ namespace Repository
         /// モデルクラスからパラメータクラスを生成する
         /// 使用方法 パラメータは必ずモデルのプロパティと一致させておく必要がある
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="target"></param>
+        /// <typeparam name="T">対象のモデルの型</typeparam>
+        /// <param name="target">対象のモデルクラス</param>
+        /// <param name="propetyNames">対象のモデルのプロパティ情報</param>
+        /// <return>SQLParameterのIEnumerableを戻す</return>
         private IEnumerable<SqlParameter> GetSqlParameterByPropety<T>(T target, IEnumerable<PropertyInfo> propetyNames) where T : class
             => propetyNames.Select(m => new SqlParameter()
             {
                 ParameterName = $"@{m.Name}",
                 Value = typeof(T).GetProperty(m.Name).GetValue(target)
             });
-
 
         #endregion
     }
