@@ -103,10 +103,6 @@ namespace Repository
         /// </summary>
         protected readonly int TimeOut = 60000;
 
-        /// <summary>
-        /// ユーザーステータス情報
-        /// </summary>
-        protected IUserState UserState { get; set; }
 
         #endregion
 
@@ -209,12 +205,12 @@ namespace Repository
         /// <returns></returns>
         private static DBInfomation CreateDBInfo()
         => new DBInfomation()
-            {
-                ServerName = "",
-                DBName = "",
-                Login = "",
-                Password = ""
-            };
+        {
+            ServerName = "",
+            DBName = "",
+            Login = "",
+            Password = ""
+        };
 #endif
 
         /// <summary>
@@ -228,7 +224,7 @@ namespace Repository
             // 接続情報確認
             bool isOtherConnect = (ConnectCount != 0);
             bool isNullConnection = (Connection is null);
-            if(isOtherConnect || isNullConnection) return;
+            if (isOtherConnect || isNullConnection) return;
 
             // 接続情報を解放する
             Connection.Close();
@@ -280,8 +276,8 @@ namespace Repository
         /// <param name="dt"> データテーブル </param>
         /// <param name="query"> 実行クエリ </param>
         /// <returns> クエリ実行結果 </returns>
-        public void ExecuteQuery(DataTable dt,string query)
-            => ExecuteQuery(dt,query, new Dictionary<string, object>());
+        public void ExecuteQuery(DataTable dt, string query)
+            => ExecuteQuery(dt, query, new Dictionary<string, object>());
 
         /// <summary>
         /// 戻り値ありクエリ実行 (コマンドパラメータ辞書型ver)
@@ -290,7 +286,7 @@ namespace Repository
         /// <param name="query"> 実行クエリ </param>
         /// <returns> クエリ実行結果 </returns>
         public void ExecuteQuery(DataTable dt, string query, Dictionary<string, object> param)
-            => ExecuteQuery(dt,query, ToSqlParameters(param));
+            => ExecuteQuery(dt, query, ToSqlParameters(param));
 
         /// <summary>
         /// 戻り値ありクエリ実行 (コマンドパラメータモデルベース ver)
@@ -300,8 +296,8 @@ namespace Repository
         /// <param name="query"> 検索クエリ </param>
         /// <param name="model"> 埋め込むデータ </param>
         /// <returns> クエリ実行結果 </returns>
-        public void ExecuteQuery<T>(DataTable dt, string query, T model) where T:class
-            => ExecuteQuery(dt,query, GetSqlParameterByPropety<T>(model, typeof(T).GetProperties()));
+        public void ExecuteQuery<T>(DataTable dt, string query, T model) where T : class
+            => ExecuteQuery(dt, query, GetSqlParameterByPropety<T>(model, typeof(T).GetProperties()));
 
         /// <summary>
         /// 戻り値ありクエリ実行 (モデルにマッピングしたリストで戻す ver)
@@ -309,7 +305,7 @@ namespace Repository
         /// <typeparam name="T">モデルの型</typeparam>
         /// <param name="query">検索クエリ</param>
         /// <returns>検索結果を格納したモデルを戻す</returns>
-        public List<T> ExecuteQuery<T>(string query)where T:class
+        public List<T> ExecuteQuery<T>(string query) where T : class
             => ToModelsByDataTable<T>(ExecuteQuery(query, null));
 
         /// <summary>
@@ -319,7 +315,7 @@ namespace Repository
         /// <param name="query">検索クエリ</param>
         /// <param name="param">SQLパラメータ</param>
         /// <returns>検索結果を格納したモデル</returns>
-        public List<T> ExecuteQuery<T>(string query, Dictionary<string, object> param)where T:class
+        public List<T> ExecuteQuery<T>(string query, Dictionary<string, object> param) where T : class
             => ToModelsByDataTable<T>(ExecuteQuery(query, ToSqlParameters(param)));
 
         /// <summary>
@@ -329,7 +325,7 @@ namespace Repository
         /// <param name="query">検索クエリ</param>
         /// <param name="model">戻り値のモデル</param>
         /// <returns>検索結果を格納したモデル</returns>
-        public List<T> ExecuteQuery<T>(string query, T model) where T:class
+        public List<T> ExecuteQuery<T>(string query, T model) where T : class
             => ToModelsByDataTable<T>(ExecuteQuery(query, GetSqlParameterByPropety<T>(model, typeof(T).GetProperties())));
 
         /// <summary>
@@ -354,7 +350,7 @@ namespace Repository
         private List<T> BinndingModelByDataTable<T>(IEnumerable<DataRow> drs,
                                                     List<string> columnNames,
                                                     List<string> propetyNames) where T : class
-            => drs.Select(m => BindingModelByDataRow<T>(m, columnNames, propetyNames)).ToList();
+            => drs.Select(m => MappingModelByDataRow<T>(m, columnNames, propetyNames)).ToList();
 
         /// <summary>
         /// DataTableからDataRowのIEnumerableに変換する
@@ -400,7 +396,7 @@ namespace Repository
         /// <param name="query"> 検索クエリ </param>
         /// <param name="parameters">SQLパラメータ</param>
         /// <returns>クエリ実行結果</returns>
-        private void ExecuteQuery(DataTable dt,string query, IEnumerable<SqlParameter> parameters)
+        private void ExecuteQuery(DataTable dt, string query, IEnumerable<SqlParameter> parameters)
         {
             //  Sql実行
             using (var command = new SqlCommand(query, Connection))
@@ -427,7 +423,7 @@ namespace Repository
         /// <param name="columnNames">検索結果のカラム名リスト</param>
         /// <param name="propetyNames">バインドするモデルのカラム名リスト</param>
         /// <returns>検索結果のDataRowを指定したモデルにマッピングした結果を返す</returns>
-        private T BindingModelByDataRow<T>(DataRow dr, List<string> columnNames, List<string> propetyNames) where T : class
+        private T MappingModelByDataRow<T>(DataRow dr, List<string> columnNames, List<string> propetyNames) where T : class
         {
             // 戻り値のモデルインスタンス作成
             var resultInstance = Activator.CreateInstance(typeof(T)) as T;
@@ -466,7 +462,7 @@ namespace Repository
         /// <typeparam name="T">モデルの型</typeparam>
         /// <param name="query">実行クエリ</param>
         /// <param name="model">登録対象の情報</param>
-        public void ExecuteNonQuery<T>(string query, T model) where T:class
+        public void ExecuteNonQuery<T>(string query, T model) where T : class
             => ExecuteNonQuery(query, GetSqlParameterByPropety<T>(model, typeof(T).GetProperties()));
 
         /// <summary>
@@ -499,7 +495,7 @@ namespace Repository
         /// <param name="param">コマンドパラメータ</param>
         /// <return>SQLParameterのIEnumerableを戻す</return>
         private IEnumerable<SqlParameter> ToSqlParameters(Dictionary<string, object> param)
-            => param.Select(m => new SqlParameter() { ParameterName = m.Key, Value = m.Value });
+            => param.Select(m => CreateSqlParameter(m.Key, m.Value));
 
         /// <summary>
         /// モデルクラスからパラメータクラスを生成する
@@ -510,11 +506,13 @@ namespace Repository
         /// <param name="propetyNames">対象のモデルのプロパティ情報</param>
         /// <return>SQLParameterのIEnumerableを戻す</return>
         private IEnumerable<SqlParameter> GetSqlParameterByPropety<T>(T target, IEnumerable<PropertyInfo> propetyNames) where T : class
-            => propetyNames.Select(m => new SqlParameter()
-            {
-                ParameterName = $"@{m.Name}",
-                Value = typeof(T).GetProperty(m.Name).GetValue(target)
-            });
+            => propetyNames.Select(m => CreateSqlParameter($"@{m.Name}", typeof(T).GetProperty(m.Name).GetValue(target)));
+
+        /// <summary>
+        /// SQLParameterの作成
+        /// </summary>
+        private SqlParameter CreateSqlParameter(string parameterName, object value)
+            => new SqlParameter(parameterName, value);
 
         #endregion
     }
